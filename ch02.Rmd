@@ -1,0 +1,276 @@
+---
+title: "Chapter 2 The Simple Linear Regression Model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls()) # Caution: this clears the Environment
+library(PoEdata)
+```
+
+## 2.1 The General Model
+
+```{r}
+data("cps_small")
+plot(cps_small$educ, cps_small$wage, 
+     xlab="education", ylab="wage")
+```
+
+## 2.2 Example: Food Expenditure versus Income
+
+```{r}
+data(food)
+head(food)
+```
+
+```{r}
+data("food", package="PoEdata")
+plot(food$income, food$food_exp, 
+     ylim=c(0, max(food$food_exp)),
+     xlim=c(0, max(food$income)),
+     xlab="weekly income in $100", 
+     ylab="weekly food expenditure in $", 
+     type = "p")
+```
+
+## 2.3 Estimating a Linear Regression
+
+```{r}
+mod1 <- lm(food_exp ~ income, data = food)
+b1 <- coef(mod1)[[1]]
+b2 <- coef(mod1)[[2]]
+smod1 <- summary(mod1)
+smod1
+```
+
+
+```{r}
+plot(food$income, food$food_exp, 
+     xlab="weekly income in $100", 
+     ylab="weekly food expenditure in $", 
+     type = "p")
+abline(b1,b2)
+```
+
+
+```{r}
+names(mod1)
+mod1$coefficients
+```
+
+
+```{r}
+names(smod1)
+smod1$coefficients
+```
+
+## 2.4 Prediction with the Linear Regression Model
+
+```{r}
+mod1 <- lm(food_exp~income, data=food)
+newx <- data.frame(income = c(20, 25, 27))
+yhat <- predict(mod1, newx)
+names(yhat) <- c("income=$2000", "$2500", "$2700") 
+yhat  # prints the result
+```
+
+## 2.5 Repeated Samples to Assess Regression Coefficients
+
+```{r}
+N <- nrow(food) # returns the number of observations in the dataset
+C <- 50         # desired number of subsamples
+S <- 38         # desired sample size
+
+sumb2 <- 0
+for (i in 1:C){   # a loop over the number of subsamples
+  set.seed(3*i)   # a different seed for each subsample  
+  subsample <- food[sample(1:N, size=S, replace=TRUE), ]
+  mod2 <- lm(food_exp~income, data=subsample)
+  #sum b2 for all subsamples:
+  sumb2 <- sumb2 + coef(mod2)[[2]]
+}
+print(sumb2/C, digits = 3)
+```
+
+## 2.6 Estimated Variances and Covariance of Regression Coefficients
+
+```{r}
+(varb1 <- vcov(mod1)[1, 1])
+(varb2 <- vcov(mod1)[2, 2])
+(covb1b2 <- vcov(mod1)[1,2])
+
+```
+
+## 2.7 Non-Linear Relationships
+
+```{r}
+data(br)
+mod3 <- lm(price~I(sqft^2), data=br)
+b1 <- coef(mod3)[[1]]
+b2 <- coef(mod3)[[2]]
+sqftx=c(2000, 4000, 6000) #given values for sqft
+pricex=b1+b2*sqftx^2 #prices corresponding to given sqft 
+DpriceDsqft <- 2*b2*sqftx # marginal effect of sqft on price
+elasticity=DpriceDsqft*sqftx/pricex 
+b1; b2; DpriceDsqft; elasticity #prints results
+```
+
+```{r}
+mod31 <- lm(price~I(sqft^2), data=br)
+plot(br$sqft, br$price, xlab="Total square feet", 
+     ylab="Sale price, $", col="grey")
+#add the quadratic curve to the scatter plot:
+curve(b1+b2*x^2, col="red", add=TRUE) 
+```
+
+```{r}
+ordat <- br[order(br$sqft), ] #sorts the dataset after `sqft`
+mod31 <- lm(price~I(sqft^2), data=ordat)
+plot(br$sqft, br$price, 
+     main="Dataset ordered after 'sqft' ", 
+     xlab="Total square feet", 
+     ylab="Sale price, $", col="grey")
+lines(fitted(mod31)~ordat$sqft, col="red")
+```
+
+```{r}
+hist(br$price, col='grey')
+hist(log(br$price), col='grey')
+```
+Figure 2.5: A comparison between the histograms of price and log(price)
+
+
+```{r}
+data("br")
+mod4 <- lm(log(price)~sqft, data=br)
+```
+
+```{r}
+ordat <- br[order(br$sqft), ] #order the dataset
+mod4 <- lm(log(price)~sqft, data=ordat)
+plot(br$sqft, br$price, col="grey")
+lines(exp(fitted(mod4))~ordat$sqft, 
+      col="blue", main="Log-linear Model")
+```
+Figure 2.6: The fitted value curve in the log-linear model
+
+
+```{r}
+ordat <- br[order(br$sqft), ] #order the dataset
+mod4 <- lm(log(price)~sqft, data=ordat)
+plot(br$sqft, br$price, col="grey")
+lines(exp(fitted(mod4))~ordat$sqft, 
+      col="blue", main="Log-linear Model")
+```
+
+```{r}
+pricex<- median(br$price)
+sqftx <- (log(pricex)-coef(mod4)[[1]])/coef(mod4)[[2]]
+(DyDx <- pricex*coef(mod4)[[2]])
+(elasticity <- sqftx*coef(mod4)[[2]])
+```
+
+```{r}
+b1 <- coef(mod4)[[1]]
+b2 <- coef(mod4)[[2]]
+#pick a few values for sqft:
+sqftx <- c(2000, 3000, 4000) 
+#estimate prices for those and add one more:
+pricex <- c(100000, exp(b1+b2*sqftx)) 
+#re-calculate sqft for all prices:
+sqftx <- (log(pricex)-b1)/b2 
+#calculate and print elasticities:
+(elasticities <- b2*sqftx) 
+```
+
+## 2.8 Using Indicator Variables in a Regression
+
+```{r}
+data(utown)
+price0bar <- mean(utown$price[which(utown$utown==0)])
+price1bar <- mean(utown$price[which(utown$utown==1)])
+```
+
+```{r}
+mod5 <- lm(price~utown, data=utown)
+b1 <- coef(mod5)[[1]] 
+b2 <- coef(mod5)[[2]]
+```
+
+## 2.9 Monte Carlo Simulation
+
+```{r}
+N <- 40
+x1 <- 10
+x2 <- 20
+b1 <- 100
+b2 <- 10
+mu <- 0
+sig2e <- 2500
+sde <- sqrt(sig2e)
+yhat1 <- b1+b2*x1
+yhat2 <- b1+b2*x2
+curve(dnorm(x, mean=yhat1, sd=sde), 0, 500, col="blue")
+curve(dnorm(x, yhat2, sde), 0,500, add=TRUE, col="red")
+abline(v=yhat1, col="blue", lty=2)
+abline(v=yhat2, col="red", lty=2)
+legend("topright", legend=c("f(y|x=10)", 
+                            "f(y|x=20)"), lty=1,
+       col=c("blue", "red"))
+```
+Figure 2.7: The theoretical (true) probability distributions of food expenditure, given two levels of income
+
+
+```{r}
+x <- c(rep(x1, N/2), rep(x2,N/2))
+xbar <- mean(x)
+sumx2 <- sum((x-xbar)^2)
+varb2 <- sig2e/sumx2
+sdb2 <- sqrt(varb2)
+leftlim <- b2-3*sdb2
+rightlim <- b2+3*sdb2
+curve(dnorm(x, mean=b2, sd=sdb2), leftlim, rightlim)
+abline(v=b2, lty=2)
+```
+Figure 2.8: The theoretical (true) probability density function of $b_2$ 
+
+```{r}
+set.seed(12345)
+y <- b1+b2*x+rnorm(N, mean=0, sd=sde)
+mod6 <- lm(y~x)
+b1hat <- coef(mod6)[[1]]
+b2hat <- coef(mod6)[[2]]
+mod6summary <- summary(mod6) #the summary contains the standard errors
+seb2hat <- coef(mod6summary)[2,2]
+```
+
+
+```{r}
+data("food")
+N <- 40
+sde <- 50
+x <- food$income
+nrsim <- 1000
+b1 <- 100
+b2 <- 10
+vb2 <- numeric(nrsim) #stores the estimates of b2
+for (i in 1:nrsim){
+  set.seed(12345+10*i)
+  y <- b1+b2*x+rnorm(N, mean=0, sd=sde)
+  mod7 <- lm(y~x)
+  vb2[i] <- coef(mod7)[[2]]
+}
+mb2 <- mean(vb2)
+seb2 <- sd(vb2)
+```
+
+```{r}
+plot(density(vb2))
+curve(dnorm(x, mb2, seb2), col="red", add=TRUE)
+legend("topright", legend=c("true", "simulated"), 
+       lty=1, col=c("red", "black"))
+hist(vb2, prob=TRUE, ylim=c(0,.4))
+curve(dnorm(x, mean=mb2, sd=seb2), col="red", add=TRUE)
+```
+

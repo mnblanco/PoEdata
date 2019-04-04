@@ -1,0 +1,223 @@
+---
+title: "Chapter 3 Interval Estimation and Hypothesis Testing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls()) # Caution: this clears the Environment
+library(PoEdata)
+library(xtable)
+library(PoEdata)
+library(knitr)
+```
+
+## 
+
+## 3.1 The Estimated Distribution of Regression Coefficients
+
+## 3.2 Confidence Interval in General
+
+## 3.3 Example: Confidence Intervals in the food Model
+
+```{r}
+data("food")
+alpha <- 0.05 # chosen significance level
+mod1 <- lm(food_exp~income, data=food)
+b2 <- coef(mod1)[[2]]
+df <- df.residual(mod1) # degrees of freedom
+smod1 <- summary(mod1)
+seb2 <- coef(smod1)[2,2] # se(b2)
+tc <- qt(1-alpha/2, df)
+lowb <- b2-tc*seb2  # lower bound
+upb <- b2+tc*seb2   # upper bound
+
+ci <- confint(mod1)
+print(ci)
+```
+
+```{r}
+lowb_b2 <- ci[2, 1] # lower bound
+upb_b2 <- ci[2, 2]  # upper bound. 
+```
+
+## 3.4 Confidence Intervals in Repeated Samples
+
+```{r}
+data("table2_2")
+alpha <- 0.05
+mod1 <- lm(y1~x, data=table2_2) # just to determine df
+tc <- qt(1-alpha/2, df) # critical t
+
+# Initiate four vectors that will store the results:
+lowb1 <- rep(0, 10) # 'repeat 0 ten times'
+upb1 <- rep(0, 10)  # (alternatively, 'numeric(10)')
+lowb2 <- rep(0, 10)
+upb2 <-rep(0, 10)
+
+# One loop for each set of income:
+for(i in 2:11){  # The curly bracket begins the loop
+  dat <- data.frame(cbind(table2_2[,1], table2_2[,i]))
+  names(dat) <- c("x", "y")  
+  mod1 <- lm(y~x, data=dat)
+  smod1 <- summary(mod1)
+  b1 <- coef(mod1)[[1]]
+  b2 <- coef(mod1)[[2]]
+  seb1 <- coef(smod1)[1,2]
+  seb2 <- coef(smod1)[2,2]
+  lowb1[i-1] <- b1-tc*seb1
+  upb1[i-1] <- b1+tc*seb1
+  lowb2[i-1] <- b2-tc*seb2
+  upb2[i-1] <- b2+tc*seb2
+} # This curly bracket ends the loop
+
+table <- data.frame(lowb1, upb1, lowb2, upb2)
+kable(table, 
+  caption="Confidence intervals for $b_{1}$ and $b_{2}$", 
+  align="c")
+
+```
+
+Table 3.1 shows the lower and upper bounds of the confidence intervals of  $\beta_1$  and  $\beta_2$.
+
+## 3.5 Hypothesis Tests
+
+```{r}
+alpha <- 0.05
+data("food")
+mod1 <- lm(food_exp~income, data=food) 
+smod1 <- summary(mod1)
+table <- data.frame(xtable(mod1))
+kable(table, 
+  caption="Regression output showing the coefficients")
+```
+
+```{r}
+b2 <- coef(mod1)[["income"]] #coefficient on income
+# or:
+b2 <- coef(mod1)[[2]] # the coefficient on income
+seb2 <- sqrt(vcov(mod1)[2,2]) #standard error of b2
+df <- df.residual(mod1) # degrees of freedom      
+t <- b2/seb2
+tcr <- qt(1-alpha/2, df)
+```
+
+```{r}
+# Plot the density function and the values of t:
+curve(dt(x, df), -2.5*seb2, 2.5*seb2, ylab=" ", xlab="t")
+abline(v=c(-tcr, tcr, t), col=c("red", "red", "blue"), 
+       lty=c(2,2,3))
+legend("topleft", legend=c("-tcr", "tcr", "t"), col=
+         c("red", "red", "blue"), lty=c(2, 2, 3))
+```
+Figure 3.1: A two-tail hypothesis testing for  b2  in the  food  example
+
+```{r}
+c <- 5.5
+alpha <- 0.05
+t <- (b2-c)/seb2
+tcr <- qt(1-alpha, df) # note: alpha is not divided by 2
+curve(dt(x, df), -2.5*seb2, 2.5*seb2, ylab=" ", xlab="t")
+abline(v=c(tcr, t), col=c("red", "blue"), lty=c(2, 3))
+legend("topleft", legend=c("tcr", "t"), 
+       col=c("red", "blue"), lty=c(2, 3))
+```
+Figure 3.2: Right-tail test: the rejection region is to the right of  tcr
+
+```{r}
+c <- 15
+alpha <- 0.05
+t <- (b2-c)/seb2 
+tcr <- qt(alpha, df) # note: alpha is not divided by 2
+curve(dt(x, df), -2.5*seb2, 2.5*seb2, ylab=" ", xlab="t")
+abline(v=c(tcr, t), col=c("red", "blue"), lty=c(2, 3))
+legend("topleft", legend=c("tcr", "t"), 
+       col=c("red", "blue"), lty=c(2, 3))
+```
+Figure 3.3: Left-tail test: the rejection region is to the left of  tcr=
+
+```{r}
+data("food")
+mod1 <- lm(food_exp ~ income, data = food)
+table <- data.frame(round(xtable(summary(mod1)), 3))
+kable(table, caption = "Regression output for the 'food' model")
+```
+Table 3.3 shows the regression output where the  t -statistics of the coefficients can be observed.
+
+## 3.6 The p-Value
+
+```{r}
+# Calculating the p-value for a right-tail test
+c <- 5.5
+t <- (b2-c)/seb2
+p <- 1-pt(t, df) # pt() returns p-values;
+```
+
+```{r}
+# Calculating the p-value for a left-tail test
+c <- 15
+t <- (b2-c)/seb2
+p <- pt(t, df) 
+```
+
+```{r}
+# Calculating the p-value for a two-tail test
+c <- 0
+t <- (b2-c)/seb2
+p <- 2*(1-pt(abs(t), df)) 
+```
+
+```{r}
+curve(dt(x, df), from=-2.5*seb2, to=2.5*seb2)
+abline(v=c(-t, t), col=c("blue", "blue"), lty=c(2, 2))
+legend("topright", legend=c("-t", "t"), 
+       col=c("blue", "blue"), lty=c(2, 4))
+```
+
+```{r}
+table <- data.frame(xtable(smod1))
+knitr::kable(table, caption=
+   "Regression output showing p-values")
+```
+
+## 3.7 Testing Linear Combinations of Parameters
+
+```{r}
+data("food")
+alpha <- 0.05
+x <- 20 # income is in 100s, remember?
+m1 <- lm(food_exp~income, data=food)
+tcr <- qt(1-alpha/2, df) # rejection region right of tcr.
+df <- df.residual(m1)
+b1 <- m1$coef[1]
+b2 <- m1$coef[2]
+varb1 <- vcov(m1)[1, 1]
+varb2 <- vcov(m1)[2, 2]
+covb1b2 <- vcov(m1)[1, 2]
+L <- b1+b2*x  # estimated L
+varL = varb1 + x^2 * varb2 + 2*x*covb1b2 # var(L)
+seL <- sqrt(varL) # standard error of L
+lowbL <- L-tcr*seL
+upbL <- L+tcr*seL
+```
+
+```{r}
+# .shadenorm(above=1.6, justabove=TRUE) 
+# segments(1.6,0,1.6,0.2,col="blue", lty=3)
+# legend("topleft", legend="t", col="blue", lty=3)
+# 
+# .shadenorm(above=-1.6, justabove=TRUE) 
+# segments(-1.6,0,-1.6,0.2,col="blue", lty=3)
+# legend("topleft", legend="t", col="blue", lty=3)
+```
+
+```{r}
+# c <- 250
+# alpha <- 0.05
+# t <- (L-c)/seL  # t < tcr --> Reject Ho.
+# tcr <- qt(1-alpha/2, df)
+# 
+# # Or, we can calculate the p-value, as follows:
+# p_value <- 2*(1-pt(abs(t), df)) #p<alpha -> Reject Ho
+```
+
